@@ -22,6 +22,8 @@ function ship.new()
         crash_threshold = 5,
         crashed = false,
         in_menu = false,
+        menu_items = {"refuel","buy","sell","exit"},
+        selected_item = 1,
         player_controlled = true
     }
     setmetatable(newship, ship)
@@ -33,6 +35,7 @@ function ship:update()
     self:update_position()
     self:check_collisions()
     self:update_camera()
+    self:update_menu()
 end
 
 function ship:update_velocity()
@@ -113,9 +116,73 @@ function ship:draw_hud()
     if(self.crashed) then
         rectfill(self.camx + 40, self.camy + 40, self.camx + 110, self.camy + 60, 3)
         rectfill(self.camx + 41, self.camy + 41, self.camx + 109, self.camy + 59, 0)
-        print("CRASHED",self.camx + 62, self.camy + 42, 3)
-        print("PRESS Z TO START",self.camx + 44, self.camy + 50, 3)
+        print("crashed",self.camx + 62, self.camy + 42, 3)
+        print("press z to start",self.camx + 44, self.camy + 50, 3)
     end
+end
+
+function ship:perform_action(action)
+    if action == 'refuel' then self:refuel() end
+    if action == 'exit' then self:exit_menu() end
+end
+
+function ship:refuel() 
+    self.fuel = 100
+end
+
+function ship:exit_menu()
+    self.in_menu = false
+end
+
+function ship:update_menu()
+    if 
+        not self.crashed 
+        and not self.in_menu
+        and btnp(🅾️) 
+        and self:collide(4).has_col
+    then
+        self.in_menu = true
+        return
+    end
+
+    if not self.in_menu then
+        return
+    end
+
+    if btnp(⬇️) then
+        self.selected_item += 1
+        if self.selected_item > #self.menu_items then
+            self.selected_item = 1
+        end
+    end
+    
+    if btnp(⬆️) then
+        self.selected_item -= 1
+        if self.selected_item < 1 then
+            self.selected_item = #self.menu_items
+        end
+    end
+
+    if btnp(🅾️) then
+        self:perform_action(self.menu_items[self.selected_item])
+    end
+end
+
+function ship:draw_menu()
+    if not self.in_menu then return end
+
+    rectfill(40, 40, 100, 100, 0)
+    rect(40, 40, 100, 100, 3)
+    
+    item_h = 10
+    for index, menu_item in pairs(self.menu_items) do
+        local color = 3
+        if index == self.selected_item then
+            color = -5
+        end
+        print(menu_item, 43, 43 + (item_h * index) - item_h, color)
+    end
+
 end
 
 function ship:booster_power() 
@@ -123,6 +190,7 @@ function ship:booster_power()
     local y = 0
     local directional_burn = 0.05
     local main_burn = 0.2
+    
     if self.crashed or self.in_menu or self.fuel <= 0 then
         return {
             x=0,
@@ -168,6 +236,7 @@ end
 function ship:draw()
     spr(self.spriteno, self.posx, self.posy)
     self:draw_hud()
+    self:draw_menu()
 end
 
 function ship:collide(flag)
@@ -206,7 +275,7 @@ end
 
 function _update()
     playership:update()
-    if(playership.crashed and btnp(🅾️)) then
+    if playership.crashed and btnp(🅾️) then
         restart()
     end
 end
@@ -357,7 +426,7 @@ __gfx__
 20202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020
 20202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020
 __gff__
-0000010102020509000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000010102020509000000000000000000000000000000000000000000000000001010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 0000000000000000000000000000000000000000000000000000000000000002020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202
