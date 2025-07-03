@@ -22,7 +22,9 @@ function ship.new()
         crash_threshold = 5,
         crashed = false,
         in_menu = false,
-        menu_items = {"refuel","buy","sell","exit"},
+        main_menu_items = {"refuel","buy","sell","exit"},
+        buy_menu_items = {"barrel (10)","ext.tank (100)", "booster (1000)", "back"},
+        deploy_slot = nil,
         selected_item = 1,
         player_controlled = true
     }
@@ -123,15 +125,27 @@ end
 
 function ship:perform_action(action)
     if action == 'refuel' then self:refuel() end
+    if action == 'buy' then self:open_buy_menu() end
     if action == 'exit' then self:exit_menu() end
+    if action == 'back' then self:back() end
 end
 
 function ship:refuel() 
     self.fuel = 100
 end
 
+function ship:open_buy_menu()
+    self.active_menu = 'buy'
+    self.selected_item = 1
+end
+
 function ship:exit_menu()
     self.in_menu = false
+end
+
+function ship:back() 
+    self.selected_item = 1
+    self.active_menu = "main_menu"
 end
 
 function ship:update_menu()
@@ -142,6 +156,7 @@ function ship:update_menu()
         and self:collide(4).has_col
     then
         self.in_menu = true
+        self.active_menu = "main_menu"
         return
     end
 
@@ -149,9 +164,20 @@ function ship:update_menu()
         return
     end
 
+    if self.active_menu == 'main_menu' then
+        return self:update_item_menu(self.main_menu_items)
+    end
+        
+    if self.active_menu == 'buy' then
+        return self:update_item_menu(self.buy_menu_items)
+    end
+end
+
+function ship:update_item_menu(items)
+    item_count = #items
     if btnp(⬇️) then
         self.selected_item += 1
-        if self.selected_item > #self.menu_items then
+        if self.selected_item > item_count then
             self.selected_item = 1
         end
     end
@@ -159,30 +185,41 @@ function ship:update_menu()
     if btnp(⬆️) then
         self.selected_item -= 1
         if self.selected_item < 1 then
-            self.selected_item = #self.menu_items
+            self.selected_item = item_count
         end
     end
 
     if btnp(🅾️) then
-        self:perform_action(self.menu_items[self.selected_item])
+        printh("performing: "..items[self.selected_item])
+        self:perform_action(items[self.selected_item])
     end
 end
 
 function ship:draw_menu()
     if not self.in_menu then return end
 
+    if self.active_menu == 'main_menu' then
+        return self:draw_item_menu(self.main_menu_items)
+    end
+
+    if self.active_menu == 'buy' then
+        return self:draw_item_menu(self.buy_menu_items)
+    end
+
+end
+
+function ship:draw_item_menu(items)
     rectfill(40, 40, 100, 100, 0)
     rect(40, 40, 100, 100, 3)
     
     item_h = 10
-    for index, menu_item in pairs(self.menu_items) do
+    for index, menu_item in pairs(items) do
         local color = 3
         if index == self.selected_item then
             color = -5
         end
         print(menu_item, 43, 43 + (item_h * index) - item_h, color)
     end
-
 end
 
 function ship:booster_power() 
@@ -297,14 +334,14 @@ function restart()
 end
 
 __gfx__
-00000000000660006666666655555555000000000000000055555555555555550000000000000000000000000000000000000000000000000000000000000000
-00000000006666006666666677777777000000066000000099999999666666660000000000000000000000000000000000000000000000000000000000000000
-00700700066dd6606666666666666666660006666660006655444554cc777cc70000000000000000000000000000000000000000000000000000000000000000
-00077000066cc6606666666666666666666666666666666644444444777777770000000000000000000000000000000000000000000000000000000000000000
-00077000066cc6606666666666666666666666666666666644455446777777760000000000000000000000000000000000000000000000000000000000000000
-0070070055555555666666666666666666666666666666664445544677c7cc760000000000000000000000000000000000000000000000000000000000000000
-0000000007000070666666666666666666666666666666664444444677c777760000000000000000000000000000000000000000000000000000000000000000
-0000000099000099666666666666666666666666666666666644446666777c660000000000000000000000000000000000000000000000000000000000000000
+00000000000660006666666655555555000000000000000055555555555555550099990000000000000000000000000000000000000000000000000000000000
+00000000006666006666666677777777000000066000000099999999666666660955559000000000000000000000000000000000000000000000000000000000
+00700700066dd6606666666666666666660006666660006655444554cc777cc70a9999a000000000000000000000000000000000000000000000000000000000
+00077000066cc6606666666666666666666666666666666644444444777777770aaa88a000000000000000000000000000000000000000000000000000000000
+00077000066cc6606666666666666666666666666666666644455446777777760aa8aaa000000000000000000000000000000000000000000000000000000000
+0070070055555555666666666666666666666666666666664445544677c7cc760aa88aa000000000000000000000000000000000000000000000000000000000
+0000000007000070666666666666666666666666666666664444444677c7777609a8aa9000000000000000000000000000000000000000000000000000000000
+0000000099000099666666666666666666666666666666666644446666777c660599995000000000000000000000000000000000000000000000000000000000
 00000000000000000666666666666660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000006666666666000000000066000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000006d000000000666666660000000000066000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
