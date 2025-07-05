@@ -3,6 +3,9 @@ version 42
 __lua__
 
 local gravity = 0.025
+local playership
+local crashed_ships = {}
+local barrels = {}
 
 local ship = {}
 ship.__index = ship
@@ -27,6 +30,7 @@ function ship.new()
         deploy_slot = nil,
         selected_item = 1,
         player_controlled = true,
+        current_barrel = nil
     }
     setmetatable(newship, ship)
     return newship
@@ -85,6 +89,13 @@ function ship:update_camera()
     camera(self.camx, self.camy)
 end
 
+function ship:draw_fuel_meter(x, y, fuel_level)
+    rect(self.camx + x, self.camy + y, self.camx + x + 6, self.camy + y + 22, 3)
+    if(fuel_level > 0) then
+        rectfill(self.camx + x + 1, self.camy + y + 1 + (20 - flr(20 * fuel_level / 100)), self.camx + x + 5, self.camy + y + 21, 10)
+    end
+end
+
 function ship:draw_hud()
     if (not self.player_controlled) return
 
@@ -94,10 +105,7 @@ function ship:draw_hud()
     
     --fuel meter 
     print('f', self.camx + 4, self.camy+2, 3)
-    rect(self.camx + 2, self.camy + 8, self.camx + 8, self.camy + 30, 3)
-    if(self.fuel > 0) then
-        rectfill(self.camx+3, self.camy+9 + (20 - flr(20 * self.fuel / 100)), self.camx+7, self.camy+29, 10)
-    end
+    self:draw_fuel_meter(2, 9, self.fuel)
 
     -- cargo
     print('cargo', self.camx + 5, self.camy + 40, 3)
@@ -157,6 +165,7 @@ end
 
 function ship:exit_menu()
     self.in_menu = false
+    self.selected_item = 1
 end
 
 function ship:deploy_cargo()
@@ -188,6 +197,11 @@ function ship:update_menu()
         end
 
         if self:collide(5).has_col then
+            map_pos = self:map_pos()
+            barrel = get_barrel(map_pos.x, map_pos.y)
+            if barrel == nil then return end
+            
+            self.current_barrel = barrel
             self.in_menu = true
             self.active_menu = "fuel_swap"
         end
@@ -254,6 +268,27 @@ end
 
 function ship:draw_fuel_menu()
     self:draw_menu_bg()
+    
+    print("ship", self.camx + 44, self.camy + 44, 3)
+    print("barrel", self.camx + 74, self.camy + 44, 3)
+    self:draw_fuel_meter(48, 60, self.fuel)
+    self:draw_fuel_meter(85, 60, self.current_barrel.fuel)
+    
+    arr1 = 49
+    arr2 = 51
+    exit_color = 3
+
+    if self.selected_item == 1 then
+        arr1 += 1
+    elseif self.selected_item == 2 then
+        arr2 += 1
+    else  
+        exit_color = -5
+    end
+
+    spr(arr1, self.camx + 65, self.camy + 60)
+    spr(arr2, self.camx + 65, self.camy + 75)
+    print("exit", self.camx + 63, self.camy + 92, exit_color)
 end
 
 function ship:draw_item_menu(items)
@@ -323,7 +358,10 @@ function ship:draw()
 end
 
 function ship:map_pos() 
-    return {x=self.posx / 8, y=self.posy / 8}
+    return {
+        x= flr(self.posx / 8), 
+        y= flr(self.posy / 8)
+    }
 end
 
 function ship:collide(flag)
@@ -344,6 +382,26 @@ function ship:collide(flag)
     }
 end
 
+function get_barrel(x, y) 
+    printh("checking barrel at "..x..", "..y)
+    printh("barrel count: "..#barrels)
+    for index, barrel in pairs(barrels) do
+        printh("checking barrel: "..index)
+        if barrel.pos.x == x and barrel.pos.y == y then
+            return barrel
+        end
+    end
+end
+
+function set_barrel(x, y, barrel) 
+    for index, barrel in pairs(barrels) do
+        if barrel.pos.x == x and barrel.pos.y == y then
+            barrels[index] = barrel
+            return
+        end
+    end
+end
+
 function zeropad(n)
     if n < 100 then
         return '0'..flr(n)
@@ -351,11 +409,6 @@ function zeropad(n)
 
     return flr(n)
 end
-
-
-local playership
-local crashed_ships = {}
-local barrels = {}
 
 function _init() 
     playership = ship.new()
