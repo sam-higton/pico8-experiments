@@ -220,6 +220,66 @@ function ship:update_menu()
     if self.active_menu == 'buy' then
         return self:update_item_menu(self.buy_menu_items)
     end
+
+    if self.active_menu == 'fuel_swap' then
+        return self:update_fuel_menu()
+    end
+end
+
+function ship:update_fuel_menu()
+    if btnp(⬇️) then
+        self.selected_item += 1
+        if self.selected_item > 3 then
+            self.selected_item = 1
+        end
+    end
+    
+    if btnp(⬆️) then
+        self.selected_item -= 1
+        if self.selected_item < 1 then
+            self.selected_item = 3
+        end
+    end
+
+    if btnp(🅾️) then
+        if (self.selected_item == 1) self:ship_to_barrel()
+        if (self.selected_item == 2) self:barrel_to_ship()
+        if (self.selected_item == 3) self:exit_menu()
+    end
+end
+
+function ship:ship_to_barrel()
+    if (self.fuel <= 0 or self.current_barrel.fuel >= 100) return
+    
+    self.fuel -= 10
+
+    if self.fuel < 0 then
+        diff = 10 + self.fuel
+        self.fuel = 0
+    else
+        diff = 10
+    end
+    self.current_barrel.fuel += diff
+    if (self.current_barrel.fuel > 100) self.current_barrel.fuel = 100
+    pos = self:map_pos()
+    set_barrel(pos.x, pos.y, self.current_barrel)
+end
+
+function ship:barrel_to_ship()
+    if (self.current_barrel.fuel <= 0 or self.fuel >= 100) return
+    
+    self.current_barrel.fuel -= 10
+
+    if self.current_barrel.fuel < 0 then
+        diff = 10 + self.current_barrel.fuel
+        self.current_barrel.fuel = 0
+    else
+        diff = 10
+    end
+    self.fuel += diff
+    if (self.fuel > 100) self.fuel = 100
+    pos = self:map_pos()
+    set_barrel(pos.x, pos.y, self.current_barrel)
 end
 
 function ship:update_item_menu(items)
