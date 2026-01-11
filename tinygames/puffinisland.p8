@@ -1,8 +1,6 @@
 pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
-
-
 local player_puffin
 local gravity = 0.2
 local scene = 'main'
@@ -17,142 +15,140 @@ local active_fish = {}
 -- game over
 
 poke(0x5f5c, 255) -- remove btnp repeat
-	
-	function objects_collide(a, b)
-		return a.x < b.x + 8
-		and a.x + 8 > b.x
-		and a.y < b.y + 8
-		and a.y + 8 > b.y
-	end
 
-	function to_grid(x,y)
-		return {
-			x=x/8,
-			y=y/8
-		}
-	end
-	
-	function from_grid(x,y)
-		return {
-			x=x*8,
-			y=y*8
-		}
-	end
-	
-	function collide(flag, x, y)
-		local left_bound = flr(x / 8)
-		local top_bound = flr(y / 8)
-		local right_bound = flr((x + 7) / 8)
-		local bottom_bound = flr((y + 7) / 8)
-		
-		local topleft_col = fget(mget(left_bound, top_bound),flag)
-		local topright_col = fget(mget(right_bound, top_bound),flag)
-		local bottomright_col = fget(mget(right_bound, bottom_bound),flag)
-		local bottomleft_col = fget(mget(left_bound, bottom_bound),flag)
-		
-		local has_col = topleft_col or topright_col or bottomleft_col or bottomright_col
-		local left_col = topleft_col or bottomleft_col
-		local right_col = topright_col or bottomright_col
-		local top_col = topleft_col or topright_col
-		local bottom_col = bottomleft_col or bottomright_col
-		
-		return {
-			has_col=has_col,
-			topleft=topleft_col,
-			topright=topright_col,
-			bottomleft=bottomleft_col,
-			buttomright=bottomright_col,
-			top=top_col,
-			bottom=bottom_col,
-			left=left_col,
-			right=right_col
-		}
-	end
-	
-	--fish class
-	local fish = {}
-	fish.__index = fish
+function objects_collide(a, b)
+	return a.x < b.x + 8
+			and a.x + 8 > b.x
+			and a.y < b.y + 8
+			and a.y + 8 > b.y
+end
 
-	function fish.new(x,y,type,speed)
-		new_fish = {
-			x=x,
-			y=y,
-			speed=speed,
-			type=type
-		}
+function to_grid(x, y)
+	return {
+		x = x / 8,
+		y = y / 8
+	}
+end
 
-		setmetatable(new_fish, fish)
-		return new_fish
-	end
+function from_grid(x, y)
+	return {
+		x = x * 8,
+		y = y * 8
+	}
+end
 
-	function fish:draw()
-		direction = self.speed > 0
-		spr(
-			self.type,
-			self.x, 
-			self.y, 
-			1,1,
-			direction
-		)
-	end
+function collide(flag, x, y)
+	local left_bound = flr(x / 8)
+	local top_bound = flr(y / 8)
+	local right_bound = flr((x + 7) / 8)
+	local bottom_bound = flr((y + 7) / 8)
 
-	function fish:update()
-		self.x += self.speed
-	end
+	local topleft_col = fget(mget(left_bound, top_bound), flag)
+	local topright_col = fget(mget(right_bound, top_bound), flag)
+	local bottomright_col = fget(mget(right_bound, bottom_bound), flag)
+	local bottomleft_col = fget(mget(left_bound, bottom_bound), flag)
 
-	function fish:is_caught(x,y)
-		return self.x < x + 8
+	local has_col = topleft_col or topright_col or bottomleft_col or bottomright_col
+	local left_col = topleft_col or bottomleft_col
+	local right_col = topright_col or bottomright_col
+	local top_col = topleft_col or topright_col
+	local bottom_col = bottomleft_col or bottomright_col
+
+	return {
+		has_col = has_col,
+		topleft = topleft_col,
+		topright = topright_col,
+		bottomleft = bottomleft_col,
+		buttomright = bottomright_col,
+		top = top_col,
+		bottom = bottom_col,
+		left = left_col,
+		right = right_col
+	}
+end
+
+--fish class
+local fish = {}
+fish.__index = fish
+
+function fish.new(x, y, type, speed)
+	new_fish = {
+		x = x,
+		y = y,
+		speed = speed,
+		type = type
+	}
+
+	setmetatable(new_fish, fish)
+	return new_fish
+end
+
+function fish:draw()
+	direction = self.speed > 0
+	spr(
+		self.type,
+		self.x,
+		self.y,
+		1, 1,
+		direction
+	)
+end
+
+function fish:update()
+	self.x += self.speed
+end
+
+function fish:is_caught(x, y)
+	return self.x < x + 8
 			and self.x + 8 > x
 			and self.y < y + 8
 			and self.y + 8 > y
-	end
-	--end fish
+end
+--end fish
 
+--puffin class
+local puffin = {}
+puffin.__index = puffin
 
-	--puffin class
-	local puffin = {}
-	puffin.__index = puffin
-
-	function puffin.new(x, y)
-		new_puffin = {
-			x=x,
-			y=y,
-			dive_x=0,
-			dive_y=0,
-			velx=0,
-			vely=0,
-			dive_vely=0,
-			dive_velx=0,
-			direction=false,
-			sprite=1,
-			moving_left=false,
-			moving_right=false,
-			wings_out=false,
-			flapping=false,
-			diving=false,
-			dive_speed=5,
-			max_climb=-3,
-			terminal_velocity=2.5,
-			dive_rate=0.5,
-			fish_in_mouth=0,
-			collision_state={
-				has_col=false,
-				topleft=false,
-				topright=false,
-				bottomleft=false,
-				bottomright=false,
-				top=false,
-				left=false,
-				bottom=false,
-				right=false
-			}
+function puffin.new(x, y)
+	new_puffin = {
+		x = x,
+		y = y,
+		dive_x = 0,
+		dive_y = 0,
+		velx = 0,
+		vely = 0,
+		dive_vely = 0,
+		dive_velx = 0,
+		direction = false,
+		sprite = 1,
+		moving_left = false,
+		moving_right = false,
+		wings_out = false,
+		flapping = false,
+		diving = false,
+		dive_speed = 5,
+		max_climb = -3,
+		terminal_velocity = 2.5,
+		dive_rate = 0.5,
+		fish_in_mouth = 0,
+		collision_state = {
+			has_col = false,
+			topleft = false,
+			topright = false,
+			bottomleft = false,
+			bottomright = false,
+			top = false,
+			left = false,
+			bottom = false,
+			right = false
+		}
 	}
 	setmetatable(new_puffin, puffin)
 	return new_puffin
 end
 
 function puffin:draw()
-
 	on_sea = collide(1, self.x, self.y + 4).has_col
 
 	if self.moving_right then
@@ -178,12 +174,12 @@ function puffin:draw()
 	else
 		y = self.y
 	end
-	
+
 	spr(
 		self.sprite,
-		self.x, 
-		y, 
-		1,1,
+		self.x,
+		y,
+		1, 1,
 		self.direction
 	)
 end
@@ -196,7 +192,7 @@ function puffin:start_dive()
 	self.dive_x = 64
 	self.dive_y = 0
 	self.dive_vely = self.vely * 0.55
-	printh("checking:"..self.x.." - ".. 125)
+	printh("checking:" .. self.x .. " - " .. 125)
 	is_school = collide(3, self.x, 125).has_col
 	if is_school then
 		total_fish = rnd(5) + 5
@@ -204,10 +200,10 @@ function puffin:start_dive()
 		total_fish = rnd(2) + 1
 	end
 	active_fish = {}
-	for i=1, total_fish do
+	for i = 1, total_fish do
 		speed = rnd(10) / 10
 		speed *= rnd() < 0.5 and 1 or -1
-		new_fish = fish.new(rnd(108),rnd(108) + 20,22,speed)
+		new_fish = fish.new(rnd(108), rnd(108) + 20, 22, speed)
 		add(active_fish, new_fish)
 	end
 	scene = 'diving'
@@ -220,7 +216,7 @@ function puffin:update_dive()
 	if btn(⬅️) then
 		self.dive_x -= 1.2
 	end
-	
+
 	if btn(➡️) then
 		self.dive_x += 1.2
 	end
@@ -245,22 +241,21 @@ function puffin:end_dive()
 	scene = 'main'
 end
 
-function puffin:draw_diving() 
+function puffin:draw_diving()
 	for f in all(active_fish) do
 		f:draw()
 	end
 
 	spr(
 		3,
-		self.dive_x, 
-		self.dive_y, 
-		1,1,false,
+		self.dive_x,
+		self.dive_y,
+		1, 1, false,
 		self.dive_vely < 0
 	)
 end
 
 function puffin:check_inputs()
-
 	if btnp(🅾️) then
 		self.diving = true
 		return
@@ -271,13 +266,13 @@ function puffin:check_inputs()
 	else
 		self.moving_left = false
 	end
-	
+
 	if btn(➡️) then
 		self.moving_right = true
 	else
 		self.moving_right = false
 	end
-	
+
 	if btn(❎) then
 		self.wings_out = true
 	else
@@ -292,7 +287,6 @@ function puffin:check_inputs()
 end
 
 function puffin:update_velocities()
-
 	if self.diving then
 		self.vely += self.dive_rate
 		return
@@ -307,7 +301,6 @@ function puffin:update_velocities()
 	end
 
 	if self.flapping then
-		
 		self.vely -= 1.5
 		if self.vely < self.max_climb * (self.y / 128) then
 			self.vely = self.max_climb * (self.y / 128)
@@ -329,7 +322,6 @@ function puffin:update_velocities()
 end
 
 function puffin:update_positions()
-	
 	if self.diving then
 		self.y += self.vely
 		col = collide(1, self.x, self.y)
@@ -340,8 +332,7 @@ function puffin:update_positions()
 	end
 
 	if (self.velx > 0 and not self.collision_state.right)
-		or(self.velx < 0 and not self.collision_state.left) 
-	then
+			or (self.velx < 0 and not self.collision_state.left) then
 		self.x = self.x + self.velx
 	end
 
@@ -384,13 +375,13 @@ end
 
 function _update()
 	if scene == 'main' then
-		player_puffin:update()	
+		player_puffin:update()
 	elseif scene == 'diving' then
 		player_puffin:update_dive()
 	end
 
 	if t() % 3 == 0 then
-		for i=0, 15 do
+		for i = 0, 15 do
 			val = 18
 			if rnd() > 0.8 then
 				val = 19
@@ -405,13 +396,13 @@ function _draw()
 		cls(12)
 		map()
 		player_puffin:draw()
-		print("fish: "..player_puffin.fish_in_mouth, 2, 2, 9)
-
+		print("fish: " .. player_puffin.fish_in_mouth, 2, 2, 9)
 	elseif scene == 'diving' then
 		cls(1)
 		player_puffin:draw_diving()
 	end
 end
+
 __gfx__
 00000000000000000000005055666555000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000555055666555000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
