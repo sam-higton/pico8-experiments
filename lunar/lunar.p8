@@ -6,7 +6,46 @@ local gravity = 0.025
 local playership
 local crashed_ships = {}
 local barrels = {}
-local layer_1 = {}
+local layer_1
+local layer_2
+
+local Starfield = {}
+Starfield.__index = Starfield
+
+function Starfield.new(color, rate, amount)
+	new_starfield = {
+		color=color,
+		rate=rate,
+		sizes={1,2},
+		stars={}
+	}
+
+	for i=1,amount,1 do
+		local size = 1
+		if (rnd(1) > 0.95) size = 2 
+		add(new_starfield.stars, {
+			x=flr(rnd(128*(128 / 8))),
+			y=flr(rnd(128*(32 / 8))),
+			size=size
+		})
+	end
+
+	setmetatable(new_starfield, Starfield)
+	return new_starfield
+end
+
+function Starfield:draw(offsetx, offsety)
+	for index, star in pairs(self.stars) do 
+		local x = star.x + offsetx * (1 - self.rate)
+		local y = star.y + offsety * (1 - self.rate)
+ 
+		if star.size == 2 then
+			circfill(x,y , 1, self.color)
+		else
+			pset(x, y, self.color)
+		end
+	end
+end
 
 local ship = {}
 ship.__index = ship
@@ -43,6 +82,7 @@ function ship:update()
     self:check_collisions()
     self:update_camera()
     self:update_menu()
+    self:check_altitude()
 
     if btnp(⬇️) and not self.in_menu then
         self:manage_cargo()
@@ -71,22 +111,25 @@ function ship:check_collisions()
 end
 
 function ship:update_camera()
+    local target_camx = self.camx
+    local target_camy = self.camy
+    
     if self.posx - self.camx > 70 then
-        self.camx = self.posx - 70
-    end
-
-    if self.posx - self.camx < 50 then
-        self.camx = self.posx - 50
+        target_camx = self.posx - 70
+    elseif self.posx - self.camx < 50 then
+        target_camx = self.posx - 50
     end
     
     if self.posy - self.camy > 80 then
-        self.camy = self.posy - 80
+        target_camy = self.posy - 80
+    elseif self.posy - self.camy < 40 then
+        target_camy = self.posy - 40
     end
-
-    if self.posy - self.camy < 40 then
-        self.camy = self.posy - 40
-    end
-
+    
+    -- Smooth transition
+    self.camx = self.camx + (target_camx - self.camx) * 0.2
+    self.camy = self.camy + (target_camy - self.camy) * 0.2
+    
     camera(self.camx, self.camy)
 end
 
@@ -397,19 +440,16 @@ function ship:booster_power()
     if btn(➡️) then
         x = x + self.directional_thruster
         self.fuel -= directional_burn
-        printh('fuel: '..self.fuel)
     end
     if btn(⬅️) then
         x = x - self.directional_thruster
         self.fuel -= directional_burn
-        printh('fuel: '..self.fuel)
     end
 
     if btn(⬆️) then
         y = y + self.main_thruster
         self.fuel -= main_burn
         sfx(1)
-        printh('fuel: '..self.fuel)
     end
 
     return {
@@ -460,6 +500,15 @@ function ship:collide(flag)
     }
 end
 
+function ship:check_altitude()
+    local map_posx = self.posx / 8
+    local map_posy = (self.posy + 7) / 8
+
+    
+
+    -- printh("map pos: "..map_posx.." "..map_posy )
+end
+
 function get_barrel(x, y) 
     printh("checking barrel at "..x..", "..y)
     printh("barrel count: "..#barrels)
@@ -490,6 +539,8 @@ end
 
 function _init() 
     playership = ship.new()
+    layer_1 = Starfield.new(7, 0.3, 1000)
+	layer_2 = Starfield.new(5, 0.07, 700)
 end
 
 function _update()
@@ -501,6 +552,8 @@ end
 
 function _draw()
     cls()
+    layer_2:draw(playership.camx, playership.camy)
+	layer_1:draw(playership.camx, playership.camy)
     map()
     for index, crashed_ship in pairs(crashed_ships) do
         crashed_ship:draw()
@@ -656,7 +709,7 @@ __map__
 0000000000000000000000000000000000000000000000000000000202020202020202000000000000000000000000000002020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202
 0000000000000000000000000000000000000000000000000003030202020202020202000000000000000000000000000002020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202
 0000000000000000000000000000000000000000000000030302020202020202020202000000000000000000000000090002020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202
-0203030500000021220000000000000000000000000003020202020202020202020200000000000000000000000306070302020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202
+0203030500000021220000090000000000000000000003020202020202020202020200000000000000000000000306070302020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202
 0202020205040303030303030000000000000000000302020202020202020202020000000000000000000000030202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202
 0202020202020202020202020300000000000000030202020202020202020202130000000000000000140503020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202
 0202020202020202020202020200000000000000020202020202020202020213000000000003030303020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202
