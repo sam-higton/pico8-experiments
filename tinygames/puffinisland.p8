@@ -1,6 +1,9 @@
 pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
+--puffin island
+--by kat and sam
+
 local player_puffin
 local gravity = 0.2
 local scene = 'main'
@@ -486,7 +489,7 @@ function _update()
 		if t() % 3 == 0 then
 			for i = 0, 15 do
 				val = 18
-				if rnd() > 0.8 then
+				if rnd() > 0.6 then
 					val = 19
 				end
 				mset(i, 15, val)
