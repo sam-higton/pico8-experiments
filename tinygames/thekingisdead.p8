@@ -10,6 +10,10 @@ map_width = 6
 map_height = 6
 menu_foreground = 8
 menu_background = 0
+king_procession_start = 128
+notifications = {}
+death_sprite = 166
+death_sprites = {166, 164, 162, 160}
 king_names = {
     'john',
     'richard',
@@ -139,11 +143,15 @@ tile_types = {
             gold = glyph('gold')
             coords = grid_coords(tile.x, tile.y)
             if kingdom.food >= 1 then 
-                kingdom.gold += 1
+                kingdom.gold -= 1
                 kingdom.food -= 1
-                notify(gold..'+1\n'..food..'\f8-1',coords.x, coords.y)
+                args = {gold..'\f8-1\n'..food..'\f8-1',coords.x, coords.y}
+                notify(unpack(args))
+                add(notifications, args)
             else
-                notify(food..'\f5x',coords.x, coords.y)
+                args = {food..'\f5x',coords.x, coords.y}
+                notify(unpack(args))
+                add(notifications, args)
             end
         end
     },
@@ -156,9 +164,13 @@ tile_types = {
             if kingdom.gold >= 1 then 
                 kingdom.gold -= 1
                 kingdom.food += 1
-                notify(food..'+1\n'..gold..'\f8-1',coords.x, coords.y)
+                args = {food..'+1\n'..gold..'\f8-1',coords.x, coords.y}
+                notify(unpack(args))
+                add(notifications, args)
             else
-                notify(gold..'\5x',coords.x, coords.y)
+                args = {gold..'\f5x',coords.x, coords.y}
+                notify(unpack(args))
+                add(notifications, args)
             end
         end
     },
@@ -171,9 +183,13 @@ tile_types = {
             if kingdom.food >= 1 then 
                 kingdom.gold += 1
                 kingdom.food -= 1
-                notify(gold..'+1\n'..food..'\f8-1',coords.x, coords.y)
+                args = {gold..'+1\n'..food..'\f8-1',coords.x, coords.y}
+                notify(unpack(args))
+                add(notifications, args)
             else
-                notify(food..'\5x',coords.x, coords.y)
+                args = {food..'\f5x',coords.x, coords.y}
+                notify(unpack(args))
+                add(notifications, args)
             end
         end
     },
@@ -186,10 +202,38 @@ tile_types = {
             if kingdom.strength < 0 then
                 kingdom.strength = 0
             else
-                notify(strength..'\f8-1',coords.x, coords.y)
+                args = {strength..'\f8-1',coords.x, coords.y}
+                notify(unpack(args))
+                add(notifications, args)
             end
-            if rnd() > 0.5 then
-               --TODO: spawn bandit
+            if true then
+                neigbours = get_neighbours(tile.x, tile.y)
+                target = sample(neigbours)
+                printh('WHAT IS TARGET')
+                printh(target.x)
+                if can_place('bandit', target.x, target.y) then
+                    tile_i = tile_at(target.x, target.y)
+                    if not tile_i then
+                        add(kingdom.tiles, {
+                            type='bandit',
+                            x=target.x,
+                            y=target.y
+                        })
+                    else
+                        kingdom.tiles[tile_i] = {
+                            type='bandit',
+                            x=target.x,
+                            y=target.y
+                        }
+                    end
+                    coords = grid_coords(target.x, target.y)
+                    spr(  
+                        tile_types.bandit.sprite,
+                        coords.x,
+                        coords.y,
+                        2,2
+                    )
+                end
             end
         end
     },
@@ -200,36 +244,49 @@ tile_types = {
             food=glyph('food')
             strength=glyph('strength')
             coords = grid_coords(tile.x, tile.y)
-            
             if kingdom.gold < 1 or kingdom.food < 1 then
-                notify(food..gold..'\5x',coords.x, coords.y)
+                args = {food..gold..'\5x',coords.x, coords.y}
+                notify(unpack(args))
+                add(notifications, args)
                 tile.type = 'bandit'
                 spr( 
-                   140,
-                   coords.x,
-                   coords.y,
-                   2,2 
+                    140,
+                    coords.x,
+                    coords.y,
+                    2,2 
                 )
             else
                 kingdom.strength += 1
                 kingdom.gold -= 1
                 kingdom.food -= 1
-                --TODO: remove bandit
-
-                notify(strength..'+1\n'..food..'\f8-1\n'..gold..'\f8-1',coords.x, coords.y)
+               
+                args = {strength..'+1\n'..food..'\f8-1\n'..gold..'\f8-1',coords.x, coords.y}
+                notify(unpack(args))
+                add(notifications, args)
+                 for n in all(get_neighbours(tile.x, tile.y)) do
+                    tile_i = tile_at(n.x, n.y)
+                    if tile_i then
+                        if kingdom.tiles[tile_i].type == 'bandit' then
+                            deli(kingdom.tiles, tile_i)
+                        end
+                    end
+                end
             end
         end
     },
     bandit={
         sprite=140,
         action=function(tile)
+            strength = glyph('strength')
+            coords = grid_coords(tile.x, tile.y)
             kingdom.strength -= 1
             if kingdom.strength < 0 then
                 kingdom.strength = 0
             else
-                notify(strength..'\f8-1',coords.x, coords.y)
+                args = {strength..'\f8-1',coords.x, coords.y}
+                notify(unpack(args))
+                add(notifications, args)
             end
-
             --TODO: destroy random entity
         end
     }
@@ -297,9 +354,13 @@ function sample(t)
 end
 
 function notify(message, x, y,color,duration)
-    duration = duration or 6
+    duration = duration or 4
     color = color or 11
-    print('\#0'..message..'\^'..duration, x,y,color)
+    message = '\#0'..message
+    if duration != 0 then
+        message = message .. '\^'..duration
+    end
+    print(message, x,y,color)
 
 end
 
@@ -314,6 +375,21 @@ function grid_coords(x, y)
         x=map_offset_x + (x*16),
         y=map_offset_y + (y*16)
     }
+end
+
+function get_neighbours(x, y) 
+    local result = {}
+    for dy = -1, 1 do
+        for dx = -1, 1 do
+            local nx, ny = x + dx, y + dy
+            if not (dx == 0 and dy == 0) and
+               nx >= 0 and nx <= 6 and
+               ny >= 0 and ny <= 6 then
+                add(result, {x=nx, y=ny})
+            end
+        end
+    end
+    return result
 end
 
 function tile_at(x,y) 
@@ -331,7 +407,14 @@ function can_place(type, x, y)
         return true
     end
     tile = kingdom.tiles[tile_i]
-    if tile.type == 'capital' then
+
+    if tile.type == 'bandit' and type == 'army' then
+        return true
+    end
+
+    if #kingdom.tiles < 49 then
+        return false
+    elseif tile.type == 'capital' then
         return false
     end
     
@@ -347,15 +430,31 @@ end
 function draw_start()
     cls()
 
-    print('he king is dead', 30, 50, 8)
-    print("press ❎ to start", 28, 100, 8)
+    print('the king is dead', 30, 30, 8)
+    spr2x(death_sprite,50, 50)
+    if #king_history == 0 then
+        print("press ❎ to start", 28, 100, 8)
+    else
+        print("press ❎ to continue", 20, 100, 8)
+    end
 end
 
 function draw_game_over()
     cls()
 
-    print('he kingdom has fallen', 30, 50, 8)
-    print("press ❎ to start", 28, 100, 8)
+    for i, king in pairs(king_history) do
+        -- rect(2, king_procession_start + (37 * i-1), 35, king_procession_start +  (35 * i-1) + 35)
+        offset = (70 * i-1)
+        spr2x(king.sprite, 5, king_procession_start + offset)
+        print(
+            king.name.. "\n the \n".. king.type,
+            7, king_procession_start + offset + 35, 8
+        )
+    end 
+
+    print('the kingdom has fallen', 40, 30, 8)
+    spr2x(168, 65, 58)
+    print("press ❎ to try again", 43, 100, 8)
 end
 
 function update_start()
@@ -369,6 +468,7 @@ function update_game_over()
         setup_new_kingdom()
         start_game()
     end 
+    king_procession_start -= 0.6
 end
 
 function update_king_picker()
@@ -396,7 +496,7 @@ function pick_king(king)
     active_tiles = king.tiles
 
     add(king_history,king) 
-
+    death_sprite = sample(death_sprites)
     set_scene('apply_buffs')
 end
 
@@ -448,12 +548,18 @@ end
 function draw_calculate_tiles()
     draw_main()
     if not first_loop then
+        if not btn(🅾️) then
+            for n in all(notifications) do
+                notify(n[1], n[2], n[3],  11, 0)
+            end
+        end
         print('\#0press ❎ to continue',20,120,11)
     end
 end
 
 function update_calculate_tiles()
     if first_loop then
+        notifications = {}
         for y=0, map_height do
             for x=0, map_width do
                 tile_i = tile_at(x, y)
@@ -467,13 +573,13 @@ function update_calculate_tiles()
                 end
             end
         end
-        print('\^7')
         first_loop = false
     end
     
     if btnp(❎) then
-        if kingdom.food <= 0 or kingdom.gold <= 0 or kingdom.strength <= 0 then
+        if kingdom.food < 1 or kingdom.gold < 1 or kingdom.strength < 1 then
             set_scene('game_over')
+            return
         end
         
         
@@ -769,6 +875,7 @@ function setup_new_kingdom()
         }
     }
     king_history = {}
+    king_procession_start = 128
 end
 
 function _update()
@@ -885,19 +992,19 @@ eceece3332888e334334444444444444333b33333333333334ccc1cc3d3d3d336fffffffffffffff
 4355b4325666665e4334334334334334333b3b333333b33336d6d6d11ddd66635ffffffffff6f6f506666d400fddd04011121d00f55a0d000000000000000000
 434444336616d663444444444444444433333333333333333666ddd11dddd663666ffffffffffff60fd1d0000cd1d000f55a00000d0d00000000000000000000
 333333336d1666d323323323323323323333333333333333366d3333333366d36566655666ffff56c1616000c161600005050000050500000000000000000000
-00222222222220000000004450000000000000000000000000444444000000000000000000000000000000000000000000000000000000000000000000000000
-000444444444000000000111110000000000000000000000044222224000000000000000000000000000000000dd000000000000000000000000000000000000
-000400060004000000001c445c10000000000000000dd800442444442400000000000000000000000000000000ff000000dd0000000000000000000000000000
-000444444424000000000111110000000000000000d78800424447b44240000000000000000000000000000005dd044000ff0440000000000000000000000000
-00046dddddd200000000017cc1000000000000000d76880042447a7b44240000000000000000000000000000555d5f0005dd0f00000000000000000000000000
-000406ddddd400000000017cc100000000000000d766d8004244473b34424000000000000000000000000000f4440400555d5400000000000000000000000000
-00040088ddd200000000017cc10000000000000d7668080044224444b344240000000000000000000000000004040400f4040400000000000000000000000000
-0004000086d400000000173333100000000000d76680000055442244444442400000000000000000000000000202040002020400000000000000000000000000
-0002000000620000000173333331000000002d766d00080054554422444442400000000000000000000000000000000000000000000000000000000000000000
-0004000000040000001733111333100000029266d000000052955544224424200000000000000000000000000000000000000000000000000000000000000000
-000200000004000000173131313310000000292d00000800552a9555442242200000000000000000000000000000000000000000000000000000000000000000
-00040000000400000013311311331000000242920000000000542295554422200000000000000000000000000000000000000000000000000000000000000000
-0002000000040000001333111333100000242020000000000000422a955222000000000000000000000000000000000000000000000000000000000000000000
-00124200022410000013331313331000002200000000000000000044445220000000000000000000000000000000000000000000000000000000000000000000
-01424480842441000011333333311000000000000000000000000000044200000000000000000000000000000000000000000000000000000000000000000000
-14022228484204100001111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00222222222220000000004450000000000000000000000000444444000000000000010011000000000000000000000000000000000000000000000000000000
+00044444444400000000011111000000000000000000000004422222400000000000015d1d6100000000000000dd000000000000000000000000000000000000
+000400060004000000001c445c10000000000000000dd8004424444424000000000016551d6610000000000000ff000000dd0000000000000000000000000000
+000444444424000000000111110000000000000000d78800424447b442400000000166661d6761000000000005dd044000ff0440000000000000000000000000
+00046dddddd200000000017cc1000000000000000d76880042447a7b442400000001777111d7710000000000555d5f0005dd0f00000000000000000000000000
+000406ddddd400000000017cc100000000000000d766d8004244473b34424000000111111111110000000000f4440400555d5400000000000000000000000000
+00040088ddd200000000017cc10000000000000d7668080044224444b3442400001ddd66666661000000000004040400f4040400000000000000000000000000
+0004000086d400000000173333100000000000d76680000055442244444442400166ddd66dd55510000000000202040002020400000000000000000000000000
+0002000000620000000173333331000000002d766d000800545544224444424001611d1d1d1d1510000000000000000000000000000000000000000000000000
+0004000000040000001733111333100000029266d00000005295554422442420016d1d1d212d1510000000000000000000000000000000000000000000000000
+000200000004000000173131313310000000292d00000800552a95554422422001611d1d12d11510000000000000000000000000000000000000000000000000
+000400000004000000133113113310000002429200000000005422955544222001622d2d2dd22510000000000000000000000000000000000000000000000000
+0002000000040000001333111333100000242020000000000000422a9552220001dddddddd5ddd10000000000000000000000000000000000000000000000000
+00124200022410000013331313331000002200000000000000000044445220000111111111dddd10000000000000000000000000000000000000000000000000
+0142448084244100001133333331100000000000000000000000000004420000166666666dddddd1000000000000000000000000000000000000000000000000
+1402222848420410000111111111000000000000000000000000000000000000165555555555dd51000000000000000000000000000000000000000000000000
